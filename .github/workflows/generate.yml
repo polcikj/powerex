@@ -1,0 +1,35 @@
+name: GenerateEmails
+on:
+  workflow_dispatch
+env:
+  BUCKET_NAME_SRC : "${{ vars.BUCKET_PREFIX }}-names"
+  BUCKET_NAME_DEST : "${{ vars.BUCKET_PREFIX }}-names-emails"
+  TEST_FILE_1 : app/test/names1.txt
+  TEST_FILE_2 : app/test/names2.txt
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  s3uploadAndDownload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git clone the repository
+        uses: actions/checkout@v4
+      - name: AWS configure credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/aws-github-role
+          role-session-name: aws-github-role
+          aws-region: ${{ vars.AWS_REGION }}
+      - name:  S3 Upload & Download
+        run: |
+          aws s3 cp ${{ env.TEST_FILE_1 }} s3://${{ env.BUCKET_NAME_SRC }}
+          aws s3 cp ${{ env.TEST_FILE_2 }} s3://${{ env.BUCKET_NAME_SRC }}
+          sleep 3
+          aws s3 cp s3://${{ env.BUCKET_NAME_DEST }}/emails_from_names1.txt .
+          aws s3 cp s3://${{ env.BUCKET_NAME_DEST }}/emails_from_names2.txt .
+      - name: Archive Generated emails
+        uses: actions/upload-artifact@v4
+        with:
+          name: GeneratedEmails.zip
+          path: emails_from_names*.txt
